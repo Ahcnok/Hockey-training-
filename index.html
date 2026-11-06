@@ -355,6 +355,21 @@ function renderTracker(item){
   card.innerHTML=top('02 / Следи за шариками')+
     '<div class="middle tracker-middle"><div class="tracker-meta"><span class="section-chip">Этап '+item.stage+' / 3</span><span class="tracker-clock" id="tracker-clock">10</span></div><p class="explain" id="tracker-instruction">Следи за '+item.targets+' красн'+(item.targets===1?'ым шариком':'ыми шариками')+'. Запоминай, где они окажутся.</p><div class="tracker-field" id="tracker-field" aria-label="Поле с движущимися шариками"></div><p class="tracker-feedback" id="tracker-feedback" aria-live="polite">Шарики двигаются — не теряй цель!</p></div>';
   const field=document.getElementById('tracker-field');
+  const fieldRect=field.getBoundingClientRect();
+  // Place balls without overlap at the start of each round.
+  trackerBalls.forEach((ball,index)=>{
+    let attempts=0, valid=false;
+    while(!valid && attempts<250){
+      attempts++;
+      ball.x=rand(7,91);
+      ball.y=rand(9,87);
+      const px=ball.x*fieldRect.width/100, py=ball.y*fieldRect.height/100;
+      valid=trackerBalls.slice(0,index).every(other=>{
+        const ox=other.x*fieldRect.width/100, oy=other.y*fieldRect.height/100;
+        return Math.hypot(px-ox,py-oy)>=40;
+      });
+    }
+  });
   trackerBalls.forEach(ball=>{
     const el=document.createElement('button');
     el.type='button';el.className='tracker-ball';
@@ -375,7 +390,43 @@ function renderTracker(item){
       ball.x+=ball.vx*speed*.20;ball.y+=ball.vy*speed*.20;
       if(ball.x<4||ball.x>maxX){ball.vx*=-1;ball.x=Math.max(4,Math.min(maxX,ball.x));}
       if(ball.y<7||ball.y>maxY){ball.vy*=-1;ball.y=Math.max(7,Math.min(maxY,ball.y));}
-      ball.el.style.left=ball.x+'%';ball.el.style.top=ball.y+'%';
+    });
+
+    // Elastic collisions: balls bounce off one another instead of passing through.
+    const minDistance=35;
+    for(let i=0;i<trackerBalls.length;i++){
+      for(let j=i+1;j<trackerBalls.length;j++){
+        const a=trackerBalls[i], b=trackerBalls[j];
+        let dx=(b.x-a.x)*rect.width/100;
+        let dy=(b.y-a.y)*rect.height/100;
+        let distance=Math.hypot(dx,dy);
+        if(distance<minDistance){
+          if(distance<0.001){dx=1;dy=0;distance=1;}
+          const nx=dx/distance, ny=dy/distance;
+          const overlap=minDistance-distance;
+          // Separate both balls so their hit areas never remain stacked.
+          a.x-=nx*overlap*.51*100/rect.width;
+          a.y-=ny*overlap*.51*100/rect.height;
+          b.x+=nx*overlap*.51*100/rect.width;
+          b.y+=ny*overlap*.51*100/rect.height;
+
+          const avx=a.vx*rect.width/100, avy=a.vy*rect.height/100;
+          const bvx=b.vx*rect.width/100, bvy=b.vy*rect.height/100;
+          const relative=(bvx-avx)*nx+(bvy-avy)*ny;
+          if(relative<0){
+            a.vx=(avx+relative*nx)*100/rect.width;
+            a.vy=(avy+relative*ny)*100/rect.height;
+            b.vx=(bvx-relative*nx)*100/rect.width;
+            b.vy=(bvy-relative*ny)*100/rect.height;
+          }
+        }
+      }
+    }
+    trackerBalls.forEach(ball=>{
+      ball.x=Math.max(4,Math.min(maxX,ball.x));
+      ball.y=Math.max(7,Math.min(maxY,ball.y));
+      ball.el.style.left=ball.x+'%';
+      ball.el.style.top=ball.y+'%';
     });
     trackerFrame=requestAnimationFrame(move);
   }
@@ -390,7 +441,28 @@ function renderTracker(item){
 function endTrackerStage(item){
   if(trackerSelecting)return;
   trackerSelecting=true;stopTracker();
+  const field=document.getElementById('tracker-field');
+  const rect=field.getBoundingClientRect();
+  for(let pass=0;pass<8;pass++){
+    for(let i=0;i<trackerBalls.length;i++){
+      for(let j=i+1;j<trackerBalls.length;j++){
+        const a=trackerBalls[i],b=trackerBalls[j];
+        let dx=(b.x-a.x)*rect.width/100,dy=(b.y-a.y)*rect.height/100;
+        let d=Math.hypot(dx,dy);
+        if(d<37){
+          if(d<.001){dx=1;dy=0;d=1;}
+          const nx=dx/d,ny=dy/d,shift=(37-d)*.52;
+          a.x-=nx*shift*100/rect.width;a.y-=ny*shift*100/rect.height;
+          b.x+=nx*shift*100/rect.width;b.y+=ny*shift*100/rect.height;
+        }
+      }
+    }
+  }
   trackerBalls.forEach(ball=>{
+    ball.x=Math.max(5,Math.min(95,ball.x));
+    ball.y=Math.max(7,Math.min(93,ball.y));
+    ball.el.style.left=ball.x+'%';
+    ball.el.style.top=ball.y+'%';
     ball.el.style.background='linear-gradient(145deg,#d9f6ff,#8ebbd0)';
     ball.el.classList.add('tracker-choice');
   });
