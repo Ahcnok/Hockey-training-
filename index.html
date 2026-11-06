@@ -52,6 +52,15 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
 .tile.selected{background:#2a6078;transform:scale(.95);border-color:#c2f4ff}
 .tile.matched{opacity:.38;cursor:default;background:#123044;border-color:#6bb18e}
 .tile.wrong{background:#65313f}
+.tracker-middle{gap:10px;min-height:0}
+.tracker-meta{width:100%;display:flex;align-items:center;justify-content:space-between}
+.tracker-clock{font-size:25px;font-weight:900;color:#d9f6ff;font-variant-numeric:tabular-nums}
+.tracker-field{position:relative;width:100%;height:clamp(210px,38vh,300px);min-height:210px;border:1px solid #75bcd4;border-radius:20px;overflow:hidden;background:radial-gradient(ellipse at center,#d7f3fa 0%,#8ec5d8 100%);box-shadow:inset 0 0 0 5px rgba(255,255,255,.2),inset 0 0 25px rgba(22,78,104,.2)}
+.tracker-field:before{content:"";position:absolute;inset:8px;border:1px solid rgba(255,255,255,.65);border-radius:15px;pointer-events:none}
+.tracker-ball{position:absolute;width:30px;height:30px;border:2px solid rgba(255,255,255,.9);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 3px 8px rgba(0,0,0,.28),inset -4px -5px 7px rgba(0,0,0,.18);padding:0;cursor:default;transition:background .25s}
+.tracker-ball.tracker-choice{cursor:pointer}
+.tracker-ball.tracker-picked{outline:3px solid #17394d;outline-offset:2px;transform:translate(-50%,-50%) scale(1.12)}
+.tracker-feedback{min-height:18px;color:#c6e5ef;font-size:13px;margin:0}
 .match-timer{font-size:clamp(22px,5vw,29px);font-weight:850;letter-spacing:.08em;color:#d9f6ff;font-variant-numeric:tabular-nums;margin:0 0 2px}
 .best-time{
   margin-top:10px;
@@ -87,7 +96,7 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
   <div class="card-top"><span class="label">Разминка перед игрой</span><span class="counter">СЕЗОН 26/27</span></div>
   <div class="middle">
     <h2 class="question">Самое время<br>помять твои мозги</h2>
-    <p class="explain">Три задания на внимание к цвету, две игры на поиск пар и вопросы на раскрытие тебя.</p>
+    <p class="explain">Три задания на цветовую реакцию, три этапа слежения за шариками, две игры на поиск пар и вопросы на раскрытие тебя.</p>
   </div>
   <div class="card-bottom"><button type="button" class="primary" id="begin">Начать разминку →</button></div>
 </section>
@@ -106,6 +115,7 @@ const card = document.getElementById('card');
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let flow = [], pos = -1, busy = false, firstPick = null, locked = false, matchedCount = 0;
 let matchStartedAt = null, matchTimerId = null, matchElapsed = 0;
+let trackerInterval = null, trackerFrame = null, trackerStageStarted = 0, trackerBalls = [], trackerTargets = 0, trackerSelecting = false, trackerSelected = [];
 const BEST_TIME_KEY = 'hockey-training-best-match-time';
 function readBestTime(){
   try { const value = Number(localStorage.getItem(BEST_TIME_KEY)); return Number.isFinite(value) && value > 0 ? value : null; }
@@ -117,6 +127,10 @@ function formatTime(ms){
   const seconds = Math.floor((safe % 60000) / 1000);
   const tenths = Math.floor((safe % 1000) / 100);
   return String(minutes).padStart(2,'0') + ':' + String(seconds).padStart(2,'0') + '.' + tenths;
+}
+function stopTracker(){
+  if(trackerInterval){clearInterval(trackerInterval);trackerInterval=null;}
+  if(trackerFrame){cancelAnimationFrame(trackerFrame);trackerFrame=null;}
 }
 function stopMatchTimer(){
   if(matchTimerId){ clearInterval(matchTimerId); matchTimerId = null; }
@@ -170,9 +184,13 @@ function makeFlow(){
   flow=[
     {type:'rules',number:'1',block:'01 / Цветовая реакция',title:'Смотри на цвет, а не на слово',body:'На карточке будет написано название цвета, но само слово окрашено в другой цвет. Твоя задача — назвать про себя именно цвет букв. После нажатия появится правильный ответ.'},
     ...shuffle(colorTasks),
-    {type:'rules',number:'2',block:'02 / Найди пары',title:'Найди все одинаковые пары',body:'На поле 12 картинок. Нужно найти 6 одинаковых пар. Когда соберёшь все пары, сможешь перейти дальше.'},
+    {type:'rules',number:'2',block:'02 / Следи за шариками',title:'Не теряй красные шарики из виду',body:'На поле будут двигаться разноцветные шарики. Следи только за красными: сначала за одним, затем за двумя и тремя. Каждый этап длится 10 секунд, а скорость движения шариков растёт от этапа к этапу. Когда шарики остановятся и станут одинаковыми, нажми на места, где, по твоему мнению, находятся красные шарики.'},
+    {type:'tracker',stage:1,targets:1},
+    {type:'tracker',stage:2,targets:2},
+    {type:'tracker',stage:3,targets:3},
+    {type:'rules',number:'3',block:'03 / Найди пары',title:'Найди все одинаковые пары',body:'На поле 12 картинок. Нужно найти 6 одинаковых пар. Когда соберёшь все пары, сможешь перейти дальше.'},
     ...shuffle([0,1]).map(n=>({type:'match',icons:pool.slice(n*6,n*6+6)})),
-    {type:'rules',number:'3',block:'03 / Вопросы на раскрытие тебя',title:'Время подумать',body:'Прочитай вопрос и ответь на него про себя. Не торопись: здесь важнее честно подумать, чем быстро перейти дальше.'},
+    {type:'rules',number:'4',block:'04 / Вопросы на раскрытие тебя',title:'Время подумать',body:'Прочитай вопрос и ответь на него про себя. Не торопись: здесь важнее честно подумать, чем быстро перейти дальше.'},
     ...(questionItems.length?questionItems:[{type:'placeholder'}]),
     {type:'wish'}
   ];
@@ -190,7 +208,7 @@ function render(){
   card.classList.remove('tap-ready');delete card.dataset.action;
   if(pos===-1){
     card.innerHTML=top('Разминка перед игрой')+
-      '<div class="middle fade-in"><h2 class="question">Самое время<br>помять твои мозги</h2><p class="explain">Три задания на внимание к цвету, две игры на поиск пар и вопросы на раскрытие тебя.</p><div class="best-time" id="best-time"></div></div>'+
+      '<div class="middle fade-in"><h2 class="question">Самое время<br>помять твои мозги</h2><p class="explain">Три задания на цветовую реакцию, три этапа слежения за шариками, две игры на поиск пар и вопросы на раскрытие тебя.</p><div class="best-time" id="best-time"></div></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="begin">Начать разминку →</button></div>';
     const best = readBestTime();
     document.getElementById('best-time').textContent = best === null ? 'Лучшее время во втором блоке: пока нет результата' : 'Лучшее время во втором блоке: ' + formatTime(best);
@@ -205,7 +223,7 @@ function render(){
     card.querySelector('.question').textContent=item.title;
     card.querySelector('.rules-copy').textContent=item.body;
     document.getElementById('rules-next').addEventListener('click',()=>{
-      if(item.number==='2') startMatchTimer();
+      if(item.number==='3') startMatchTimer();
       next();
     });
   }else if(item.type==='color'){
@@ -224,8 +242,10 @@ function render(){
     word.style.textAlign='center';
     word.style.display='block';
     card.dataset.action='reveal';
+  }else if(item.type==='tracker'){
+    renderTracker(item);
   }else if(item.type==='match'){
-    card.innerHTML=top('02 / Найди пары')+
+    card.innerHTML=top('03 / Найди пары')+
       '<div class="middle"><span class="section-chip">Тренировка внимания</span><div class="match-timer" id="match-timer" aria-live="off">00:00.0</div><div class="match-board" id="board"></div><div class="match-status" id="status" aria-live="polite">Найдено пар: 0 / 6</div></div><div class="card-bottom"><span class="mini-note"> </span></div>';
     const board=document.getElementById('board');
     shuffle(item.icons.concat(item.icons)).forEach(symbol=>{
@@ -233,12 +253,12 @@ function render(){
       b.addEventListener('click',()=>pick(b));board.appendChild(b);
     });
   }else if(item.type==='question'){
-    card.innerHTML=top('03 / Твои вопросы')+
+    card.innerHTML=top('04 / Твои вопросы')+
       '<div class="middle"><span class="section-chip">Вопрос для тебя</span><div class="puck" aria-hidden="true"></div><h2 class="question"></h2><p class="explain">Подумай и коснись карточки, когда будешь готов.</p></div>'+
       bottom('Коснись карточки, чтобы продолжить');
     card.querySelector('.question').textContent=item.q;setTapAdvance();
   }else if(item.type==='placeholder'){
-    card.innerHTML=top('03 / Твои вопросы')+
+    card.innerHTML=top('04 / Твои вопросы')+
       '<div class="middle fade-in"><span class="section-chip">Скоро здесь будут вопросы</span><h2 class="question">Твоя личная разминка</h2></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="placeholder-next">Дальше →</button></div>';
     document.getElementById('placeholder-next').addEventListener('click',next);
@@ -249,6 +269,81 @@ function render(){
     document.getElementById('wish-text').textContent=finalWish||'Ты готов выходить на лёд!';
     document.getElementById('wish-note').textContent=finalWish?'':'Здесь будет твоё особенное пожелание перед матчем.';
     document.getElementById('again').addEventListener('click',restart);
+  }
+}
+
+function renderTracker(item){
+  trackerTargets=item.targets;
+  trackerSelecting=false;
+  trackerSelected=[];
+  const count=10;
+  const colors=['#55baff','#62dc91','#ffd45c','#c49aff','#ff9b4a','#f4f7fb'];
+  const targetIndexes=new Set(shuffle(Array.from({length:count},(_,i)=>i)).slice(0,item.targets));
+  trackerBalls=Array.from({length:count},(_,i)=>({
+    x:rand(8,88),y:rand(12,82),
+    vx:(Math.random()<.5?-1:1)*(0.55+item.stage*.42+Math.random()*.25),
+    vy:(Math.random()<.5?-1:1)*(0.45+item.stage*.38+Math.random()*.25),
+    target:targetIndexes.has(i),el:null
+  }));
+  card.innerHTML=top('02 / Следи за шариками')+
+    '<div class="middle tracker-middle"><div class="tracker-meta"><span class="section-chip">Этап '+item.stage+' / 3</span><span class="tracker-clock" id="tracker-clock">20</span></div><p class="explain" id="tracker-instruction">Следи за '+item.targets+' красн'+(item.targets===1?'ым шариком':'ыми шариками')+'. Запоминай, где они окажутся.</p><div class="tracker-field" id="tracker-field" aria-label="Поле с движущимися шариками"></div><p class="tracker-feedback" id="tracker-feedback" aria-live="polite">Шарики двигаются — не теряй цель!</p></div>';
+  const field=document.getElementById('tracker-field');
+  trackerBalls.forEach(ball=>{
+    const el=document.createElement('button');
+    el.type='button';el.className='tracker-ball';
+    el.style.left=ball.x+'%';el.style.top=ball.y+'%';
+    el.style.background=ball.target?'#f04452':colors[rand(0,colors.length-1)];
+    el.setAttribute('aria-label','Шарик');
+    el.addEventListener('click',()=>selectTrackerBall(ball,el,item));
+    field.appendChild(el);ball.el=el;
+  });
+  trackerStageStarted=performance.now();
+  const speed=[0,2.0,2.8,3.5][item.stage];
+  function move(){
+    if(trackerSelecting)return;
+    const rect=field.getBoundingClientRect();
+    const maxX=Math.max(5,100-100*34/Math.max(rect.width,1));
+    const maxY=Math.max(8,100-100*34/Math.max(rect.height,1));
+    trackerBalls.forEach(ball=>{
+      ball.x+=ball.vx*speed*.12;ball.y+=ball.vy*speed*.12;
+      if(ball.x<4||ball.x>maxX){ball.vx*=-1;ball.x=Math.max(4,Math.min(maxX,ball.x));}
+      if(ball.y<7||ball.y>maxY){ball.vy*=-1;ball.y=Math.max(7,Math.min(maxY,ball.y));}
+      ball.el.style.left=ball.x+'%';ball.el.style.top=ball.y+'%';
+    });
+    trackerFrame=requestAnimationFrame(move);
+  }
+  trackerFrame=requestAnimationFrame(move);
+  trackerInterval=setInterval(()=>{
+    const left=Math.max(0,10-Math.floor((performance.now()-trackerStageStarted)/1000));
+    const clock=document.getElementById('tracker-clock');
+    if(clock)clock.textContent=String(left);
+    if(left<=0)endTrackerStage(item);
+  },100);
+}
+function endTrackerStage(item){
+  if(trackerSelecting)return;
+  trackerSelecting=true;stopTracker();
+  trackerBalls.forEach(ball=>{
+    ball.el.style.background='linear-gradient(145deg,#d9f6ff,#8ebbd0)';
+    ball.el.classList.add('tracker-choice');
+  });
+  const instruction=document.getElementById('tracker-instruction');
+  const feedback=document.getElementById('tracker-feedback');
+  if(instruction)instruction.textContent='Где были красные шарики? Выбери '+trackerTargets+' '+(trackerTargets===1?'позицию':'позиции')+'.';
+  if(feedback)feedback.textContent='Выбрано: 0 / '+trackerTargets;
+  const clock=document.getElementById('tracker-clock');if(clock)clock.textContent='ВЫБОР';
+}
+function selectTrackerBall(ball,el,item){
+  if(!trackerSelecting||el.disabled)return;
+  if(trackerSelected.includes(ball))return;
+  trackerSelected.push(ball);el.classList.add('tracker-picked');
+  const feedback=document.getElementById('tracker-feedback');
+  if(feedback)feedback.textContent='Выбрано: '+trackerSelected.length+' / '+trackerTargets;
+  if(trackerSelected.length===trackerTargets){
+    const correct=trackerSelected.filter(b=>b.target).length;
+    if(feedback)feedback.textContent=correct===trackerTargets?'Верно! Отличная концентрация 💪':'Этап завершён! Продолжаем тренировку.';
+    trackerBalls.forEach(b=>b.el.disabled=true);
+    window.setTimeout(()=>next(),900);
   }
 }
 function pick(tile){
@@ -276,7 +371,7 @@ function pick(tile){
   }
 }
 function change(update){
-  if(busy)return;busy=true;
+  if(busy)return;stopTracker();busy=true;
   if(reduceMotion){update();render();busy=false;return;}
   card.classList.add('out');
   window.setTimeout(()=>{
@@ -286,7 +381,7 @@ function change(update){
   },390);
 }
 function next(){if(pos<flow.length-1)change(()=>{pos++;});}
-function restart(){stopMatchTimer();matchStartedAt=null;matchElapsed=0;change(()=>makeFlow());}
+function restart(){stopTracker();stopMatchTimer();matchStartedAt=null;matchElapsed=0;change(()=>makeFlow());}
 card.addEventListener('click',event=>{
   if(event.target.closest('button'))return;
   if(card.dataset.action==='reveal'){
