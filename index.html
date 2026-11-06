@@ -52,6 +52,13 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
 .tile.selected{background:#2a6078;transform:scale(.95);border-color:#c2f4ff}
 .tile.matched{opacity:.38;cursor:default;background:#123044;border-color:#6bb18e}
 .tile.wrong{background:#65313f}
+.life-gameover-icon{font-size:54px;line-height:1;margin-bottom:4px;filter:drop-shadow(0 5px 10px rgba(0,0,0,.18))}
+.life-choice-actions{gap:10px}
+.life-choice-actions .primary,.life-choice-actions .ghost{width:100%;max-width:290px}
+.top-right{display:flex;align-items:center;gap:10px}
+.life-hearts{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.life-heart{font-size:17px;line-height:1;color:#f06a78;text-shadow:0 1px 5px rgba(0,0,0,.2);transition:opacity .2s,transform .2s}
+.life-heart.lost{color:#668395;opacity:.42;text-shadow:none}
 .tracker-middle{gap:10px;min-height:0}
 .tracker-meta{width:100%;display:flex;align-items:center;justify-content:space-between}
 .tracker-clock{font-size:25px;font-weight:900;color:#d9f6ff;font-variant-numeric:tabular-nums}
@@ -116,6 +123,65 @@ const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-mo
 let flow = [], pos = -1, busy = false, firstPick = null, locked = false, matchedCount = 0;
 let matchStartedAt = null, matchTimerId = null, matchElapsed = 0;
 let trackerInterval = null, trackerFrame = null, trackerStageStarted = 0, trackerBalls = [], trackerTargets = 0, trackerSelecting = false, trackerSelected = [];
+let lives = 3;
+function updateLives(){
+  const node=document.getElementById('life-hearts');
+  if(node) node.innerHTML=Array.from({length:3},(_,i)=>'<span class="life-heart '+(i<lives?'alive':'lost')+'">♥</span>').join('');
+}
+function loseLife(){
+  if(lives<=0)return false;
+  lives--;
+  updateLives();
+  if(lives===0){
+    const current=flow[pos];
+    stopTracker();
+    const trackerBlock = current && current.type==='tracker';
+    const matchIndexes=flow.map((entry,index)=>entry.type==='match'?index:-1).filter(index=>index>=0);
+    const matchBlock = current && current.type==='match' || matchIndexes.includes(pos);
+
+    if(trackerBlock || matchBlock){
+      stopMatchTimer();
+      const retryId=trackerBlock?'retry-tracker':'retry-match';
+      const skipId=trackerBlock?'skip-tracker':'skip-match';
+      const nextRulesNumber=trackerBlock?'3':'4';
+      card.innerHTML=top('Жизни закончились')+
+        '<div class="middle fade-in"><div class="life-gameover-icon" aria-hidden="true">💔</div><h2 class="question">Все жизни потрачены</h2><p class="explain">Как поступим дальше?</p></div>'+
+        '<div class="card-bottom life-choice-actions">'+
+        '<button type="button" class="primary" id="'+retryId+'">↻ Начать блок заново</button>'+
+        '<button type="button" class="ghost" id="'+skipId+'">→ Перейти к следующему блоку</button>'+
+        '</div>';
+
+      document.getElementById(retryId).addEventListener('click',()=>{
+        lives=3;
+        firstPick=null;locked=false;matchedCount=0;
+        if(trackerBlock){
+          const first=flow.findIndex(entry=>entry.type==='tracker');
+          change(()=>{pos=first-1;});
+          window.setTimeout(()=>next(),30);
+        }else{
+          matchStartedAt=null;matchElapsed=0;
+          const first=flow.findIndex(entry=>entry.type==='match');
+          change(()=>{pos=first-1;});
+          window.setTimeout(()=>{startMatchTimer();next();},30);
+        }
+      });
+      document.getElementById(skipId).addEventListener('click',()=>{
+        const nextBlock=flow.findIndex((entry,index)=>index>pos && entry.type==='rules' && entry.number===nextRulesNumber);
+        if(nextBlock>=0)change(()=>{pos=nextBlock;});
+      });
+      return false;
+    }
+
+    stopMatchTimer();
+    card.innerHTML=top('Жизни закончились')+
+      '<div class="middle fade-in"><div class="life-gameover-icon" aria-hidden="true">💔</div><h2 class="question">Все жизни потрачены</h2><p class="explain">Попробуй ещё раз и побей свой результат!</p></div>'+
+      '<div class="card-bottom"><button type="button" class="primary" id="life-restart">Повторить разминку ↻</button></div>';
+    document.getElementById('life-restart').addEventListener('click',restart);
+    return false;
+  }
+  return true;
+}
+
 const BEST_TIME_KEY = 'hockey-training-best-match-time';
 function readBestTime(){
   try { const value = Number(localStorage.getItem(BEST_TIME_KEY)); return Number.isFinite(value) && value > 0 ? value : null; }
@@ -197,7 +263,7 @@ function makeFlow(){
   pos=-1;
 }
 function top(label){
-  return '<div class="card-top"><span class="label">'+label+'</span><span class="counter">'+(pos<0?'СЕЗОН 26/27':String(pos+1).padStart(2,'0')+' / '+String(flow.length).padStart(2,'0'))+'</span></div>';
+  return '<div class="card-top"><span class="label">'+label+'</span><span class="top-right"><span class="counter">'+(pos<0?'СЕЗОН 26/27':String(pos+1).padStart(2,'0')+' / '+String(flow.length).padStart(2,'0'))+'</span>'+(pos>=0?'<span class="life-hearts" id="life-hearts" aria-label="Осталось жизней"></span>':'')+'</span></div>';
 }
 function bottom(hint){
   return '<div class="card-bottom"><span class="hint">'+hint+'</span><span class="arrow" aria-hidden="true">→</span></div>';
@@ -270,6 +336,7 @@ function render(){
     document.getElementById('wish-note').textContent=finalWish?'':'Здесь будет твоё особенное пожелание перед матчем.';
     document.getElementById('again').addEventListener('click',restart);
   }
+  updateLives();
 }
 
 function renderTracker(item){
@@ -286,7 +353,7 @@ function renderTracker(item){
     target:targetIndexes.has(i),el:null
   }));
   card.innerHTML=top('02 / Следи за шариками')+
-    '<div class="middle tracker-middle"><div class="tracker-meta"><span class="section-chip">Этап '+item.stage+' / 3</span><span class="tracker-clock" id="tracker-clock">20</span></div><p class="explain" id="tracker-instruction">Следи за '+item.targets+' красн'+(item.targets===1?'ым шариком':'ыми шариками')+'. Запоминай, где они окажутся.</p><div class="tracker-field" id="tracker-field" aria-label="Поле с движущимися шариками"></div><p class="tracker-feedback" id="tracker-feedback" aria-live="polite">Шарики двигаются — не теряй цель!</p></div>';
+    '<div class="middle tracker-middle"><div class="tracker-meta"><span class="section-chip">Этап '+item.stage+' / 3</span><span class="tracker-clock" id="tracker-clock">10</span></div><p class="explain" id="tracker-instruction">Следи за '+item.targets+' красн'+(item.targets===1?'ым шариком':'ыми шариками')+'. Запоминай, где они окажутся.</p><div class="tracker-field" id="tracker-field" aria-label="Поле с движущимися шариками"></div><p class="tracker-feedback" id="tracker-feedback" aria-live="polite">Шарики двигаются — не теряй цель!</p></div>';
   const field=document.getElementById('tracker-field');
   trackerBalls.forEach(ball=>{
     const el=document.createElement('button');
@@ -298,14 +365,14 @@ function renderTracker(item){
     field.appendChild(el);ball.el=el;
   });
   trackerStageStarted=performance.now();
-  const speed=[0,2.0,2.8,3.5][item.stage];
+  const speed=[0,4.1,4.6,5.2][item.stage];
   function move(){
     if(trackerSelecting)return;
     const rect=field.getBoundingClientRect();
     const maxX=Math.max(5,100-100*34/Math.max(rect.width,1));
     const maxY=Math.max(8,100-100*34/Math.max(rect.height,1));
     trackerBalls.forEach(ball=>{
-      ball.x+=ball.vx*speed*.12;ball.y+=ball.vy*speed*.12;
+      ball.x+=ball.vx*speed*.20;ball.y+=ball.vy*speed*.20;
       if(ball.x<4||ball.x>maxX){ball.vx*=-1;ball.x=Math.max(4,Math.min(maxX,ball.x));}
       if(ball.y<7||ball.y>maxY){ball.vy*=-1;ball.y=Math.max(7,Math.min(maxY,ball.y));}
       ball.el.style.left=ball.x+'%';ball.el.style.top=ball.y+'%';
@@ -337,11 +404,12 @@ function selectTrackerBall(ball,el,item){
   if(!trackerSelecting||el.disabled)return;
   if(trackerSelected.includes(ball))return;
   trackerSelected.push(ball);el.classList.add('tracker-picked');
+  if(!ball.target && !loseLife())return;
   const feedback=document.getElementById('tracker-feedback');
   if(feedback)feedback.textContent='Выбрано: '+trackerSelected.length+' / '+trackerTargets;
   if(trackerSelected.length===trackerTargets){
     const correct=trackerSelected.filter(b=>b.target).length;
-    if(feedback)feedback.textContent=correct===trackerTargets?'Верно! Отличная концентрация 💪':'Этап завершён! Продолжаем тренировку.';
+    if(feedback)feedback.textContent=correct===trackerTargets?'Верно! Отличная концентрация 💪':'Этап завершён. Продолжаем тренировку.';
     trackerBalls.forEach(b=>b.el.disabled=true);
     window.setTimeout(()=>next(),900);
   }
@@ -367,6 +435,7 @@ function pick(tile){
     }
   }else{
     previous.classList.add('wrong');tile.classList.add('wrong');
+    if(!loseLife())return;
     window.setTimeout(()=>{previous.classList.remove('selected','wrong');tile.classList.remove('selected','wrong');locked=false;},550);
   }
 }
@@ -381,7 +450,7 @@ function change(update){
   },390);
 }
 function next(){if(pos<flow.length-1)change(()=>{pos++;});}
-function restart(){stopTracker();stopMatchTimer();matchStartedAt=null;matchElapsed=0;change(()=>makeFlow());}
+function restart(){stopTracker();stopMatchTimer();matchStartedAt=null;matchElapsed=0;lives=3;change(()=>makeFlow());}
 card.addEventListener('click',event=>{
   if(event.target.closest('button'))return;
   if(card.dataset.action==='reveal'){
