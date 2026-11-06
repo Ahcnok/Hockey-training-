@@ -36,7 +36,8 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
 .middle{width:100%;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:17px;padding:15px 0}
 .puck{width:64px;height:24px;border-radius:50%;background:linear-gradient(#253643,#071018);border:2px solid #6e8c9b;box-shadow:0 7px 0 #050d15,0 12px 17px #0009;margin-bottom:8px}
 .question{font-size:clamp(24px,5.8vw,33px);font-weight:800;line-height:1.27;letter-spacing:-.025em;margin:0;overflow-wrap:anywhere}
-.explain{font-size:14px;line-height:1.55;color:#c2dce9;margin:0;max-width:315px}
+.color-word{white-space:nowrap;max-width:100%;width:100%;text-align:center;overflow-wrap:normal;word-break:keep-all;font-size:clamp(20px,7vw,42px)!important;letter-spacing:.01em!important}
+.math-answer{font-size:22px;font-weight:850;color:#b8f1ff;background:#0b2537;border:1px solid #5c9db7;border-radius:16px;padding:12px 18px;box-shadow:inset 0 1px 0 #ffffff18}.math-answer[hidden]{display:none}.explain{font-size:14px;line-height:1.55;color:#c2dce9;margin:0;max-width:315px}
 .card-bottom{width:100%;display:flex;justify-content:center;align-items:center;flex-direction:column;gap:12px;min-height:55px}
 .hint{color:#b8d2df;font-size:12px}
 .arrow{width:37px;height:37px;border:1px solid #5c91a8;border-radius:50%;display:grid;place-items:center;font-size:19px}
@@ -46,11 +47,27 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
 .actions{margin-top:29px}
 .footer{color:#89aaba;text-align:center;font-size:12px;line-height:1.5}
 .section-chip{display:inline-flex;border-radius:50px;border:1px solid #4a7c94;padding:7px 12px;font-size:11px;letter-spacing:.1em;color:#b7e3f0;text-transform:uppercase;font-weight:800}
-.match-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;width:min(100%,315px)}
+.match-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;width:min(100%,315px)}
 .tile{aspect-ratio:1/1;min-height:70px;border:1px solid #5a98b5;border-radius:17px;background:#13344b;font-size:clamp(30px,8vw,44px);display:grid;place-items:center;cursor:pointer;transition:transform .2s,background .2s,opacity .2s;color:white}
 .tile.selected{background:#2a6078;transform:scale(.95);border-color:#c2f4ff}
 .tile.matched{opacity:.38;cursor:default;background:#123044;border-color:#6bb18e}
 .tile.wrong{background:#65313f}
+.match-timer{font-size:clamp(22px,5vw,29px);font-weight:850;letter-spacing:.08em;color:#d9f6ff;font-variant-numeric:tabular-nums;margin:0 0 2px}
+.best-time{
+  margin-top:10px;
+  padding:11px 16px;
+  border:1px solid rgba(224,249,255,.78);
+  border-radius:18px;
+  color:#14384d;
+  font-size:13px;
+  font-weight:800;
+  line-height:1.45;
+  background:
+    repeating-linear-gradient(128deg,rgba(255,255,255,.16) 0 1px,transparent 1px 13px),
+    linear-gradient(145deg,rgba(231,250,255,.96),rgba(166,220,236,.94));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -5px 12px rgba(71,143,171,.12),0 5px 16px rgba(0,0,0,.12);
+  max-width:100%;
+}
 .match-status{font-size:13px;color:#c4e5ef;min-height:20px}
 .match-next{margin-top:2px}
 .mini-note{font-size:12px;color:#90b3c6}
@@ -63,19 +80,14 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
 <body>
 <div class="rink" aria-hidden="true"></div>
 <div class="page">
-<header>
-<p class="eyebrow">Game day · Mental warm-up</p>
-<h1>Перед выходом на лёд</h1>
-<p class="subtitle">Короткая разминка для головы перед игрой</p>
-</header>
+
 <main class="main">
 <div class="stack">
 <section class="card" id="card" aria-live="polite" aria-label="Карточка разминки">
-  <div class="card-top"><span class="label">Разминка перед игрой</span><span class="counter">START</span></div>
+  <div class="card-top"><span class="label">Разминка перед игрой</span><span class="counter">СЕЗОН 26/27</span></div>
   <div class="middle">
-    <span class="section-chip">GAME DAY</span><div class="puck" aria-hidden="true"></div>
     <h2 class="question">Самое время<br>помять твои мозги</h2>
-    <p class="explain">Два примера, две игры на внимательность и твои особенные вопросы.</p>
+    <p class="explain">Три задания на внимание к цвету, две игры на поиск пар и вопросы на раскрытие тебя.</p>
   </div>
   <div class="card-bottom"><button type="button" class="primary" id="begin">Начать разминку →</button></div>
 </section>
@@ -93,34 +105,81 @@ const icons = ['🏒','🥅','⛸️','🏆','🧤','🪖','🏅','⭐','🔥','
 const card = document.getElementById('card');
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let flow = [], pos = -1, busy = false, firstPick = null, locked = false, matchedCount = 0;
+let matchStartedAt = null, matchTimerId = null, matchElapsed = 0;
+const BEST_TIME_KEY = 'hockey-training-best-match-time';
+function readBestTime(){
+  try { const value = Number(localStorage.getItem(BEST_TIME_KEY)); return Number.isFinite(value) && value > 0 ? value : null; }
+  catch(e){ return null; }
+}
+function formatTime(ms){
+  const safe = Math.max(0, Math.floor(ms));
+  const minutes = Math.floor(safe / 60000);
+  const seconds = Math.floor((safe % 60000) / 1000);
+  const tenths = Math.floor((safe % 1000) / 100);
+  return String(minutes).padStart(2,'0') + ':' + String(seconds).padStart(2,'0') + '.' + tenths;
+}
+function stopMatchTimer(){
+  if(matchTimerId){ clearInterval(matchTimerId); matchTimerId = null; }
+}
+function startMatchTimer(){
+  stopMatchTimer();
+  matchStartedAt = performance.now();
+  matchElapsed = 0;
+  matchTimerId = setInterval(()=>{
+    if(matchStartedAt === null) return;
+    matchElapsed = performance.now() - matchStartedAt;
+    const display = document.getElementById('match-timer');
+    if(display) display.textContent = formatTime(matchElapsed);
+  },100);
+}
+function finishMatchTimer(){
+  if(matchStartedAt === null) return;
+  matchElapsed = performance.now() - matchStartedAt;
+  matchStartedAt = null;
+  stopMatchTimer();
+  const previous = readBestTime();
+  if(previous === null || matchElapsed < previous){
+    try { localStorage.setItem(BEST_TIME_KEY, String(Math.round(matchElapsed))); } catch(e){}
+  }
+  const display = document.getElementById('match-timer');
+  if(display) display.textContent = formatTime(matchElapsed);
+}
 const rand = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
 function shuffle(list){
   const a=list.slice();
   for(let i=a.length-1;i>0;i--){const j=rand(0,i);[a[i],a[j]]=[a[j],a[i]];}
   return a;
 }
-function makeMath(){
-  const op=shuffle(['+','−','×'])[0];
-  let a,b;
-  if(op==='×'){a=rand(2,9);b=rand(2,9);}
-  else{a=rand(7,35);b=rand(2,22);if(op==='−'&&b>a){const t=a;a=b;b=t;}}
-  return a+' '+op+' '+b+' = ?';
+function makeColorTask(){
+  const colors=[
+    {name:'КРАСНЫЙ',hex:'#ff5364'},
+    {name:'СИНИЙ',hex:'#55baff'},
+    {name:'ЗЕЛЁНЫЙ',hex:'#62dc91'},
+    {name:'ЖЁЛТЫЙ',hex:'#ffd45c'},
+    {name:'ФИОЛЕТОВЫЙ',hex:'#c49aff'},
+    {name:'ОРАНЖЕВЫЙ',hex:'#ff9b4a'}
+  ];
+  const word=colors[rand(0,colors.length-1)];
+  const ink=shuffle(colors.filter(c=>c.name!==word.name))[0];
+  return {type:'color',word:word.name,inkName:ink.name,inkHex:ink.hex};
 }
 function makeFlow(){
-  const math=new Set();
-  while(math.size<2) math.add(makeMath());
+  const colorTasks=Array.from({length:3},makeColorTask);
   const pool=shuffle(icons);
   const questionItems=shuffle(personalQuestions.filter(q=>String(q).trim()).map(q=>({type:'question',q:q})));
   flow=[
-    ...shuffle(Array.from(math)).map(q=>({type:'math',q:q})),
-    ...shuffle([0,1]).map(n=>({type:'match',icons:pool.slice(n*3,n*3+3)})),
+    {type:'rules',number:'1',block:'01 / Цветовая реакция',title:'Смотри на цвет, а не на слово',body:'На карточке будет написано название цвета, но само слово окрашено в другой цвет. Твоя задача — назвать про себя именно цвет букв. После нажатия появится правильный ответ.'},
+    ...shuffle(colorTasks),
+    {type:'rules',number:'2',block:'02 / Найди пары',title:'Найди все одинаковые пары',body:'На поле 12 картинок. Нужно найти 6 одинаковых пар. Когда соберёшь все пары, сможешь перейти дальше.'},
+    ...shuffle([0,1]).map(n=>({type:'match',icons:pool.slice(n*6,n*6+6)})),
+    {type:'rules',number:'3',block:'03 / Вопросы на раскрытие тебя',title:'Время подумать',body:'Прочитай вопрос и ответь на него про себя. Не торопись: здесь важнее честно подумать, чем быстро перейти дальше.'},
     ...(questionItems.length?questionItems:[{type:'placeholder'}]),
     {type:'wish'}
   ];
   pos=-1;
 }
 function top(label){
-  return '<div class="card-top"><span class="label">'+label+'</span><span class="counter">'+(pos<0?'START':String(pos+1).padStart(2,'0')+' / '+String(flow.length).padStart(2,'0'))+'</span></div>';
+  return '<div class="card-top"><span class="label">'+label+'</span><span class="counter">'+(pos<0?'СЕЗОН 26/27':String(pos+1).padStart(2,'0')+' / '+String(flow.length).padStart(2,'0'))+'</span></div>';
 }
 function bottom(hint){
   return '<div class="card-bottom"><span class="hint">'+hint+'</span><span class="arrow" aria-hidden="true">→</span></div>';
@@ -131,25 +190,48 @@ function render(){
   card.classList.remove('tap-ready');delete card.dataset.action;
   if(pos===-1){
     card.innerHTML=top('Разминка перед игрой')+
-      '<div class="middle fade-in"><span class="section-chip">GAME DAY</span><div class="puck" aria-hidden="true"></div><h2 class="question">Самое время<br>помять твои мозги</h2><p class="explain">Два примера, две игры на внимательность и твои особенные вопросы.</p></div>'+
+      '<div class="middle fade-in"><h2 class="question">Самое время<br>помять твои мозги</h2><p class="explain">Три задания на внимание к цвету, две игры на поиск пар и вопросы на раскрытие тебя.</p><div class="best-time" id="best-time"></div></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="begin">Начать разминку →</button></div>';
+    const best = readBestTime();
+    document.getElementById('best-time').textContent = best === null ? 'Лучшее время во втором блоке: пока нет результата' : 'Лучшее время во втором блоке: ' + formatTime(best);
     return;
   }
   const item=flow[pos];
-  if(item.type==='math'){
-    card.innerHTML=top('01 / Математика')+
-      '<div class="middle"><span class="section-chip">Посчитай в уме</span><div class="puck" aria-hidden="true"></div><h2 class="question"></h2><p class="explain">Ответь про себя. Когда будешь готов, коснись свободной области карточки.</p></div>'+
-      bottom('Коснись карточки, чтобы продолжить');
-    card.querySelector('.question').textContent=item.q;setTapAdvance();
+  if(item.type==='rules'){
+    card.innerHTML=top(item.block)+
+      '<div class="middle fade-in"><span class="section-chip" id="rules-label"></span><div class="puck" aria-hidden="true"></div><h2 class="question" style="font-size:clamp(23px,5vw,30px)"></h2><p class="explain rules-copy"></p></div>'+
+      '<div class="card-bottom"><button type="button" class="primary" id="rules-next">Понятно, начать →</button></div>';
+    document.getElementById('rules-label').textContent='Правила блока №'+item.number;
+    card.querySelector('.question').textContent=item.title;
+    card.querySelector('.rules-copy').textContent=item.body;
+    document.getElementById('rules-next').addEventListener('click',()=>{
+      if(item.number==='2') startMatchTimer();
+      next();
+    });
+  }else if(item.type==='color'){
+    card.innerHTML=top('01 / Цветовая реакция')+
+      '<div class="middle"><span class="section-chip">Задание на внимание</span><div class="puck" aria-hidden="true"></div><h2 class="question color-word"></h2><div class="math-answer" id="math-answer" hidden></div><p class="explain" id="math-explain">Нажми на карточку, чтобы увидеть ответ.</p></div>'+
+      bottom('Нажми, чтобы увидеть правильный ответ');
+    const word=card.querySelector('.color-word');
+    word.textContent=item.word;
+    word.style.color=item.inkHex;
+    word.style.textShadow='0 2px 14px #0007';
+    word.style.fontSize='clamp(20px,7vw,42px)';
+    word.style.letterSpacing='.01em';
+    word.style.whiteSpace='nowrap';
+    word.style.maxWidth='100%';
+    word.style.width='100%';
+    word.style.textAlign='center';
+    word.style.display='block';
+    card.dataset.action='reveal';
   }else if(item.type==='match'){
     card.innerHTML=top('02 / Найди пары')+
-      '<div class="middle"><span class="section-chip">Тренировка внимания</span><h2 class="question" style="font-size:25px">Найди одинаковые картинки</h2><p class="explain">Нажми на две одинаковые картинки, чтобы собрать пару.</p><div class="match-board" id="board"></div><div class="match-status" id="status" aria-live="polite">Найдено пар: 0 / 3</div><button type="button" class="primary match-next" id="match-next" hidden>Следующая карточка →</button></div><div class="card-bottom"><span class="mini-note">Сначала найди все три пары</span></div>';
+      '<div class="middle"><span class="section-chip">Тренировка внимания</span><div class="match-timer" id="match-timer" aria-live="off">00:00.0</div><div class="match-board" id="board"></div><div class="match-status" id="status" aria-live="polite">Найдено пар: 0 / 6</div></div><div class="card-bottom"><span class="mini-note"> </span></div>';
     const board=document.getElementById('board');
     shuffle(item.icons.concat(item.icons)).forEach(symbol=>{
       const b=document.createElement('button');b.type='button';b.className='tile';b.textContent=symbol;b.dataset.icon=symbol;b.setAttribute('aria-label','Картинка '+symbol);
       b.addEventListener('click',()=>pick(b));board.appendChild(b);
     });
-    document.getElementById('match-next').addEventListener('click',next);
   }else if(item.type==='question'){
     card.innerHTML=top('03 / Твои вопросы')+
       '<div class="middle"><span class="section-chip">Вопрос для тебя</span><div class="puck" aria-hidden="true"></div><h2 class="question"></h2><p class="explain">Подумай и коснись карточки, когда будешь готов.</p></div>'+
@@ -157,12 +239,12 @@ function render(){
     card.querySelector('.question').textContent=item.q;setTapAdvance();
   }else if(item.type==='placeholder'){
     card.innerHTML=top('03 / Твои вопросы')+
-      '<div class="middle fade-in"><span class="section-chip">Скоро здесь будут вопросы</span><h2 class="question">Твоя личная разминка</h2><p class="explain">Сюда добавим вопросы, которые ты пришлёшь позже. Они будут перемешиваться при каждом запуске.</p></div>'+
+      '<div class="middle fade-in"><span class="section-chip">Скоро здесь будут вопросы</span><h2 class="question">Твоя личная разминка</h2></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="placeholder-next">Дальше →</button></div>';
     document.getElementById('placeholder-next').addEventListener('click',next);
   }else{
     card.innerHTML=top('Финальная карточка')+
-      '<div class="middle fade-in"><span class="section-chip">GAME ON 🏒</span><div class="puck" aria-hidden="true"></div><h2 class="question" id="wish-text"></h2><p class="explain" id="wish-note"></p></div>'+
+      '<div class="middle fade-in"><div class="puck" aria-hidden="true"></div><h2 class="question" id="wish-text"></h2><p class="explain" id="wish-note"></p></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="again">Ещё раз ↻</button></div>';
     document.getElementById('wish-text').textContent=finalWish||'Ты готов выходить на лёд!';
     document.getElementById('wish-note').textContent=finalWish?'':'Здесь будет твоё особенное пожелание перед матчем.';
@@ -178,11 +260,15 @@ function pick(tile){
     previous.classList.remove('selected');tile.classList.remove('selected');
     previous.classList.add('matched');tile.classList.add('matched');
     previous.disabled=true;tile.disabled=true;matchedCount++;
-    document.getElementById('status').textContent='Найдено пар: '+matchedCount+' / 3';
+    document.getElementById('status').textContent='Найдено пар: '+matchedCount+' / 6';
     locked=false;
-    if(matchedCount===3){
+    if(matchedCount===6){
       document.getElementById('status').textContent='Все пары найдены! Отлично 💪';
-      document.getElementById('match-next').hidden=false;
+      const matchPositions = flow.map((entry,index)=>entry.type==='match'?index:-1).filter(index=>index>=0);
+      const isLastMatch = matchPositions.length && pos===matchPositions[matchPositions.length-1];
+      if(isLastMatch) finishMatchTimer();
+      locked = true;
+      window.setTimeout(()=>next(),700);
     }
   }else{
     previous.classList.add('wrong');tile.classList.add('wrong');
@@ -200,10 +286,18 @@ function change(update){
   },390);
 }
 function next(){if(pos<flow.length-1)change(()=>{pos++;});}
-function restart(){change(()=>makeFlow());}
+function restart(){stopMatchTimer();matchStartedAt=null;matchElapsed=0;change(()=>makeFlow());}
 card.addEventListener('click',event=>{
   if(event.target.closest('button'))return;
-  if(card.dataset.action==='next')next();
+  if(card.dataset.action==='reveal'){
+    const item=flow[pos];
+    const answer=document.getElementById('math-answer');
+    answer.hidden=false;
+    answer.textContent='Правильный ответ: '+item.inkName;
+    document.getElementById('math-explain').textContent='Смотри на цвет букв, а не на значение слова.';
+    card.querySelector('.hint').textContent='Нажми ещё раз, чтобы перейти к следующему примеру';
+    card.dataset.action='next';
+  }else if(card.dataset.action==='next')next();
 });
 card.addEventListener('click',event=>{
   if(event.target && event.target.id==='begin')next();
