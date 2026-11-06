@@ -96,7 +96,7 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
   <div class="card-top"><span class="label">Разминка перед игрой</span><span class="counter">СЕЗОН 26/27</span></div>
   <div class="middle">
     <h2 class="question">Самое время<br>помять твои мозги</h2>
-    <p class="explain">Три задания на цветовую реакцию, три этапа слежения за шариками, две игры на поиск пар и вопросы на раскрытие тебя.</p>
+    <p class="explain"></p>
   </div>
   <div class="card-bottom"><button type="button" class="primary" id="begin">Начать разминку →</button></div>
 </section>
@@ -178,7 +178,7 @@ function makeColorTask(){
   return {type:'color',word:word.name,inkName:ink.name,inkHex:ink.hex};
 }
 function makeFlow(){
-  const colorTasks=Array.from({length:3},makeColorTask);
+  const colorTasks=Array.from({length:5},makeColorTask);
   const pool=shuffle(icons);
   const questionItems=shuffle(personalQuestions.filter(q=>String(q).trim()).map(q=>({type:'question',q:q})));
   flow=[
@@ -208,7 +208,7 @@ function render(){
   card.classList.remove('tap-ready');delete card.dataset.action;
   if(pos===-1){
     card.innerHTML=top('Разминка перед игрой')+
-      '<div class="middle fade-in"><h2 class="question">Самое время<br>помять твои мозги</h2><p class="explain">Три задания на цветовую реакцию, три этапа слежения за шариками, две игры на поиск пар и вопросы на раскрытие тебя.</p><div class="best-time" id="best-time"></div></div>'+
+      '<div class="middle fade-in"><h2 class="question">Самое время<br>помять твои мозги</h2><p class="explain"></p><div class="best-time" id="best-time"></div></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="begin">Начать разминку →</button></div>';
     const best = readBestTime();
     document.getElementById('best-time').textContent = best === null ? 'Лучшее время во втором блоке: пока нет результата' : 'Лучшее время во втором блоке: ' + formatTime(best);
