@@ -91,6 +91,17 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
 @keyframes fadeIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:370px){.card{padding:21px 16px}.tile{min-height:62px}.stack,.card{min-height:400px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.card.out,.card.in{filter:none}}
+
+/* Quiet visual-attention stages, preserving the established hockey palette. */
+.attention-heading{font-size:clamp(17px,4.5vw,21px);font-weight:800;line-height:1.25;margin:0;text-align:center}
+.attention-field{flex:none;position:relative;overflow:hidden;background:linear-gradient(135deg,#183e57,#0d273a);border-color:#679db6}
+.attention-dot{position:absolute;width:19px;height:19px;border-radius:50%;background:#f1fbff;border:2px solid #c9e8f3;box-shadow:0 1px 9px #d9f6ff55;transform:translate(-50%,-50%);transition:background .12s,box-shadow .12s,transform .12s}
+.attention-dot.flash{background:#f23f51;border-color:#ffd1d6;box-shadow:0 0 16px #f23f51aa;transform:translate(-50%,-50%) scale(1.3)}
+.peripheral-dot{position:absolute;width:19px;height:19px;border-radius:50%;background:#fff;border:2px solid #d4eaf4;box-shadow:0 1px 11px #ffffff77;transform:translate(-50%,-50%);pointer-events:none}
+.aim-mark{position:absolute;left:50%;top:50%;width:38px;height:38px;border:3px solid #fa4b5b;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 13px #f44b5b33;pointer-events:none}
+.aim-mark:before,.aim-mark:after{content:"";position:absolute;background:#fa4b5b;left:50%;top:50%;transform:translate(-50%,-50%)}
+.aim-mark:before{width:52px;height:2px}.aim-mark:after{width:2px;height:52px}
+.aim-mark span{position:absolute;left:50%;top:50%;width:6px;height:6px;background:#fa4b5b;border-radius:50%;transform:translate(-50%,-50%)}
 </style>
 </head>
 <body>
@@ -115,8 +126,75 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
 <script>
 (function(){
 'use strict';
-const personalQuestions = []; // Позже добавим вопросы пользователя.
-const finalWish = '';          // Позже добавим пожелание.
+const personalQuestions = [
+  "Что я контролирую сегодня?",
+  "Что я хочу почувствовать после финиша?",
+  "Как я справлюсь с неудачным моментом?",
+  "Что я уже сделал, чтобы быть здесь?",
+  "Как я хочу, чтобы меня запомнили сегодня?",
+  "На чём я хочу сосредоточиться в первые минуты игры?",
+  "Что помогает мне сохранять спокойствие под давлением?",
+  "Каким партнёром по команде я хочу быть сегодня?",
+  "Что я могу сделать для команды даже без шайбы?",
+  "Как я пойму, что сегодня сыграл с полной отдачей?",
+  "Какую свою сильную сторону я хочу показать на льду?",
+  "Что поможет мне быстро вернуться в игру после ошибки?",
+  "Как я могу поддержать партнёра в сложный момент?",
+  "Что для меня значит быть надёжным игроком?",
+  "Каким должен быть мой первый шаг после неудачи?",
+  "Что я чувствую, когда действительно уверен в себе?",
+  "Как я могу использовать волнение себе на пользу?",
+  "Какую маленькую победу я хочу одержать сегодня?",
+  "Что мне важно помнить в напряжённый момент матча?",
+  "Как я хочу реагировать на неожиданности на льду?",
+  "Что помогает мне доверять своим решениям?",
+  "Какой момент на тренировках доказал мне, что я расту?",
+  "Что я делаю хорошо, даже когда никто этого не замечает?",
+  "Какая привычка помогает мне играть лучше?",
+  "Как я хочу вести себя после пропущенной шайбы?",
+  "Что я могу дать команде своим настроем?",
+  "Как я пойму, что оставался собой в этой игре?",
+  "Что заставляет меня любить хоккей?",
+  "Когда я чувствую себя по-настоящему частью команды?",
+  "Как мне не потерять концентрацию после удачного эпизода?",
+  "Что я могу сделать, если игра пойдёт не по плану?",
+  "Какую мысль я хочу взять с собой на лёд?",
+  "Что для меня важнее одного неудачного эпизода?",
+  "Как я хочу выглядеть в глазах самого себя после матча?",
+  "На что я могу опереться, когда становится тяжело?",
+  "Как я могу помочь команде своим решением за секунду?",
+  "Что я хочу сделать смелее, чем в прошлой игре?",
+  "Как я буду возвращать внимание к следующему эпизоду?",
+  "Как я хочу проявить характер сегодня?",
+  "Какая моя черта особенно полезна в решающие минуты?",
+  "Что помогает мне не сравнивать себя с другими игроками?",
+  "Как я хочу относиться к своим ошибкам сегодня?",
+  "Что я могу контролировать, когда судейское решение мне не нравится?",
+  "Какую задачу я поставлю себе на первую смену?",
+  "Что делает меня полезным игроком вне зависимости от счёта?",
+  "Что я чувствую, когда команда действует как единое целое?",
+  "Какой совет я дал бы себе перед первым вбрасыванием?",
+  "Как я могу сохранить ясную голову в конце матча?",
+  "Что я хочу заметить в своей игре сегодня?",
+  "Как мне оставаться собранным, когда я устал?",
+  "Что я могу сделать, чтобы играть свободнее?",
+  "Какое качество я хочу укрепить сегодня?",
+  "Что поможет мне услышать партнёров даже в шуме арены?",
+  "Как я хочу завершить матч независимо от результата?",
+  "За что я могу поблагодарить себя уже сейчас?"
+]; // 5 личных вопросов + 50 дополнительных
+const finalWishes = [
+  "Пусть сегодня лёд будет на твоей стороне. ❤️",
+  "Играй смело. Я в тебя верю! 🏒",
+  "Пусть каждая смена приносит уверенность.",
+  "Лёгких ног, точных передач и улыбки после матча!",
+  "Пусть шайба слушается тебя сегодня. ❤️",
+  "Выходи на лёд и просто будь собой.",
+  "Пусть сегодня всё сложится красиво — как ты умеешь.",
+  "Лови свой момент. Я мысленно рядом. ❤️",
+  "Желаю тебе кайфовать от каждой минуты на льду!",
+  "Пусть игра подарит тебе повод гордиться собой."
+]; // Случайное пожелание на каждую разминку.
 const icons = ['🏒','🥅','⛸️','🏆','🧤','🪖','🏅','⭐','🔥','⚡','🎯','💪','🐻','🦊','🐯','🦁'];
 const card = document.getElementById('card');
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -143,7 +221,7 @@ function loseLife(){
       stopMatchTimer();
       const retryId=trackerBlock?'retry-tracker':'retry-match';
       const skipId=trackerBlock?'skip-tracker':'skip-match';
-      const nextRulesNumber=trackerBlock?'3':'4';
+      const nextRulesNumber=trackerBlock?'3':'2';
       card.innerHTML=top('Жизни закончились')+
         '<div class="middle fade-in"><div class="life-gameover-icon" aria-hidden="true">💔</div><h2 class="question">Все жизни потрачены</h2><p class="explain">Как поступим дальше?</p></div>'+
         '<div class="card-bottom life-choice-actions">'+
@@ -156,19 +234,19 @@ function loseLife(){
         firstPick=null;locked=false;matchedCount=0;
         if(trackerBlock){
           const first=flow.findIndex(entry=>entry.type==='tracker');
-          change(()=>{pos=first-1;});
-          window.setTimeout(()=>next(),30);
+          change(()=>{pos=first;});
         }else{
           matchStartedAt=null;matchElapsed=0;
           const first=flow.findIndex(entry=>entry.type==='match');
-          change(()=>{pos=first-1;});
-          window.setTimeout(()=>{startMatchTimer();next();},30);
+          startMatchTimer();
+          change(()=>{pos=first;});
         }
       });
       document.getElementById(skipId).addEventListener('click',()=>{
         const nextBlock=flow.findIndex((entry,index)=>index>pos && entry.type==='rules' && entry.number===nextRulesNumber);
-        if(nextBlock>=0)change(()=>{pos=nextBlock;});
+        if(nextBlock>=0){lives=3;change(()=>{pos=nextBlock;});}
       });
+      updateLives();
       return false;
     }
 
@@ -177,6 +255,7 @@ function loseLife(){
       '<div class="middle fade-in"><div class="life-gameover-icon" aria-hidden="true">💔</div><h2 class="question">Все жизни потрачены</h2><p class="explain">Попробуй ещё раз и побей свой результат!</p></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="life-restart">Повторить разминку ↻</button></div>';
     document.getElementById('life-restart').addEventListener('click',restart);
+    updateLives();
     return false;
   }
   return true;
@@ -230,35 +309,21 @@ function shuffle(list){
   for(let i=a.length-1;i>0;i--){const j=rand(0,i);[a[i],a[j]]=[a[j],a[i]];}
   return a;
 }
-function makeColorTask(){
-  const colors=[
-    {name:'КРАСНЫЙ',hex:'#ff5364'},
-    {name:'СИНИЙ',hex:'#55baff'},
-    {name:'ЗЕЛЁНЫЙ',hex:'#62dc91'},
-    {name:'ЖЁЛТЫЙ',hex:'#ffd45c'},
-    {name:'ФИОЛЕТОВЫЙ',hex:'#c49aff'},
-    {name:'ОРАНЖЕВЫЙ',hex:'#ff9b4a'}
-  ];
-  const word=colors[rand(0,colors.length-1)];
-  const ink=shuffle(colors.filter(c=>c.name!==word.name))[0];
-  return {type:'color',word:word.name,inkName:ink.name,inkHex:ink.hex};
-}
 function makeFlow(){
-  const colorTasks=Array.from({length:5},makeColorTask);
   const pool=shuffle(icons);
-  const questionItems=shuffle(personalQuestions.filter(q=>String(q).trim()).map(q=>({type:'question',q:q})));
+  const questionItems=shuffle(personalQuestions.filter(q=>String(q).trim())).slice(0,5).map(q=>({type:'question',q:q}));
   flow=[
-    {type:'rules',number:'1',block:'01 / Цветовая реакция',title:'Смотри на цвет, а не на слово',body:'На карточке будет написано название цвета, но само слово окрашено в другой цвет. Твоя задача — назвать про себя именно цвет букв. После нажатия появится правильный ответ.'},
-    ...shuffle(colorTasks),
-    {type:'rules',number:'2',block:'02 / Следи за шариками',title:'Не теряй красные шарики из виду',body:'На поле будут двигаться разноцветные шарики. Следи только за красными: сначала за одним, затем за двумя и тремя. Каждый этап длится 10 секунд, а скорость движения шариков растёт от этапа к этапу. Когда шарики остановятся и станут одинаковыми, нажми на места, где, по твоему мнению, находятся красные шарики.'},
+    {type:'rules',number:'1',block:'01 / Найди пары',title:'Найди все одинаковые пары',body:'На поле 12 картинок. Нужно найти 6 одинаковых пар. Когда соберёшь все пары, сможешь перейти дальше.'},
+    ...shuffle([0,1]).map(n=>({type:'match',icons:pool.slice(n*6,n*6+6)})),
+    {type:'rules',number:'2',block:'02 / Тренировка внимания',title:'Три упражнения на внимание',body:''},
     {type:'tracker',stage:1,targets:1},
     {type:'tracker',stage:2,targets:2},
     {type:'tracker',stage:3,targets:3},
-    {type:'rules',number:'3',block:'03 / Найди пары',title:'Найди все одинаковые пары',body:'На поле 12 картинок. Нужно найти 6 одинаковых пар. Когда соберёшь все пары, сможешь перейти дальше.'},
-    ...shuffle([0,1]).map(n=>({type:'match',icons:pool.slice(n*6,n*6+6)})),
-    {type:'rules',number:'4',block:'04 / Вопросы на раскрытие тебя',title:'Время подумать',body:'Прочитай вопрос и ответь на него про себя. Не торопись: здесь важнее честно подумать, чем быстро перейти дальше.'},
+    {type:'blink',stage:2},
+    {type:'peripheral',stage:3},
+    {type:'rules',number:'3',block:'03 / Вопросы на раскрытие тебя',title:'Время подумать',body:'Прочитай вопрос и ответь на него про себя. Не торопись: здесь важнее твоё внутреннее ощущение.'},
     ...(questionItems.length?questionItems:[{type:'placeholder'}]),
-    {type:'wish'}
+    {type:'wish',text:finalWishes[rand(0,finalWishes.length-1)]}
   ];
   pos=-1;
 }
@@ -277,7 +342,7 @@ function render(){
       '<div class="middle fade-in"><h2 class="question">Самое время<br>помять твои мозги</h2><p class="explain"></p><div class="best-time" id="best-time"></div></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="begin">Начать разминку →</button></div>';
     const best = readBestTime();
-    document.getElementById('best-time').textContent = best === null ? 'Лучшее время во втором блоке: пока нет результата' : 'Лучшее время во втором блоке: ' + formatTime(best);
+    document.getElementById('best-time').textContent = best === null ? 'Лучшее время в первом блоке: пока нет результата' : 'Лучшее время в первом блоке: ' + formatTime(best);
     return;
   }
   const item=flow[pos];
@@ -288,30 +353,19 @@ function render(){
     document.getElementById('rules-label').textContent='Правила блока №'+item.number;
     card.querySelector('.question').textContent=item.title;
     card.querySelector('.rules-copy').textContent=item.body;
+    card.querySelector('.rules-copy').hidden=!item.body;
     document.getElementById('rules-next').addEventListener('click',()=>{
-      if(item.number==='3') startMatchTimer();
+      if(item.number==='1') startMatchTimer();
       next();
     });
-  }else if(item.type==='color'){
-    card.innerHTML=top('01 / Цветовая реакция')+
-      '<div class="middle"><span class="section-chip">Задание на внимание</span><div class="puck" aria-hidden="true"></div><h2 class="question color-word"></h2><div class="math-answer" id="math-answer" hidden></div><p class="explain" id="math-explain">Нажми на карточку, чтобы увидеть ответ.</p></div>'+
-      bottom('Нажми, чтобы увидеть правильный ответ');
-    const word=card.querySelector('.color-word');
-    word.textContent=item.word;
-    word.style.color=item.inkHex;
-    word.style.textShadow='0 2px 14px #0007';
-    word.style.fontSize='clamp(20px,7vw,42px)';
-    word.style.letterSpacing='.01em';
-    word.style.whiteSpace='nowrap';
-    word.style.maxWidth='100%';
-    word.style.width='100%';
-    word.style.textAlign='center';
-    word.style.display='block';
-    card.dataset.action='reveal';
   }else if(item.type==='tracker'){
     renderTracker(item);
+  }else if(item.type==='blink'){
+    renderBlinkExercise();
+  }else if(item.type==='peripheral'){
+    renderPeripheralExercise();
   }else if(item.type==='match'){
-    card.innerHTML=top('03 / Найди пары')+
+    card.innerHTML=top('01 / Найди пары')+
       '<div class="middle"><span class="section-chip">Тренировка внимания</span><div class="match-timer" id="match-timer" aria-live="off">00:00.0</div><div class="match-board" id="board"></div><div class="match-status" id="status" aria-live="polite">Найдено пар: 0 / 6</div></div><div class="card-bottom"><span class="mini-note"> </span></div>';
     const board=document.getElementById('board');
     shuffle(item.icons.concat(item.icons)).forEach(symbol=>{
@@ -319,24 +373,100 @@ function render(){
       b.addEventListener('click',()=>pick(b));board.appendChild(b);
     });
   }else if(item.type==='question'){
-    card.innerHTML=top('04 / Твои вопросы')+
-      '<div class="middle"><span class="section-chip">Вопрос для тебя</span><div class="puck" aria-hidden="true"></div><h2 class="question"></h2><p class="explain">Подумай и коснись карточки, когда будешь готов.</p></div>'+
+    card.innerHTML=top('03 / Твои вопросы')+
+      '<div class="middle"><span class="section-chip">Вопрос для тебя</span><div class="puck" aria-hidden="true"></div><h2 class="question"></h2></div>'+
       bottom('Коснись карточки, чтобы продолжить');
     card.querySelector('.question').textContent=item.q;setTapAdvance();
   }else if(item.type==='placeholder'){
-    card.innerHTML=top('04 / Твои вопросы')+
+    card.innerHTML=top('03 / Твои вопросы')+
       '<div class="middle fade-in"><span class="section-chip">Скоро здесь будут вопросы</span><h2 class="question">Твоя личная разминка</h2></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="placeholder-next">Дальше →</button></div>';
     document.getElementById('placeholder-next').addEventListener('click',next);
   }else{
-    card.innerHTML=top('Финальная карточка')+
+    card.innerHTML=top('Маленькое пожелание')+
       '<div class="middle fade-in"><div class="puck" aria-hidden="true"></div><h2 class="question" id="wish-text"></h2><p class="explain" id="wish-note"></p></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="again">Ещё раз ↻</button></div>';
-    document.getElementById('wish-text').textContent=finalWish||'Ты готов выходить на лёд!';
-    document.getElementById('wish-note').textContent=finalWish?'':'Здесь будет твоё особенное пожелание перед матчем.';
+    document.getElementById('wish-text').textContent=item.text;
     document.getElementById('again').addEventListener('click',restart);
   }
   updateLives();
+}
+
+
+// Two quiet attention exercises: 20 seconds each, with automatic progression.
+function renderBlinkExercise(){
+  stopTracker();
+  card.innerHTML=top('02 / Тренировка внимания')+
+    '<div class="middle tracker-middle"><span class="section-chip">Этап 2 / 3</span>'+
+    '<h2 class="attention-heading">Следи за красными вспышками</h2>'+
+    '<div class="tracker-field attention-field blink-field" id="blink-field" aria-label="Поле с мигающими точками"></div>'+
+    '<p class="tracker-feedback" id="blink-feedback">Следи глазами за точками, которые загораются красным.</p>'+
+    '<button type="button" class="primary" id="blink-start">Начнём →</button></div>';
+  const field=document.getElementById('blink-field');
+  const positions=[[15,18],[48,13],[82,19],[23,42],[68,39],[87,57],[13,74],[44,81],[75,76]];
+  const points=positions.map(([x,y])=>{
+    const dot=document.createElement('span');
+    dot.className='attention-dot';
+    dot.style.left=x+'%';dot.style.top=y+'%';
+    field.appendChild(dot);
+    return dot;
+  });
+  document.getElementById('blink-start').addEventListener('click',()=>{
+    document.getElementById('blink-start').remove();
+    const started=performance.now();
+    let last=-1,active=-1,nextFlash=started;
+    function tick(){
+      const now=performance.now();
+      const elapsed=now-started;
+      if(elapsed>=20000){
+        stopTracker();next();return;
+      }
+      if(now<nextFlash)return;
+      if(active>=0)points[active].classList.remove('flash');
+      const choices=points.map((_,i)=>i).filter(i=>i!==last);
+      active=choices[rand(0,choices.length-1)];
+      last=active;
+      points[active].classList.add('flash');
+      // Gradually accelerate the flashes, from 780ms to 190ms.
+      const interval=780-(590*Math.min(1,elapsed/20000));
+      nextFlash=now+interval;
+    }
+    tick();
+    trackerInterval=setInterval(tick,30);
+  },{once:true});
+}
+function renderPeripheralExercise(){
+  stopTracker();
+  card.innerHTML=top('02 / Тренировка внимания')+
+    '<div class="middle tracker-middle"><span class="section-chip">Этап 3 / 3</span>'+
+    '<h2 class="attention-heading">Смотри в центр</h2>'+
+    '<div class="tracker-field attention-field peripheral-field" id="peripheral-field" aria-label="Красный прицел в центре и движущаяся белая точка">'+
+    '<div class="aim-mark" aria-hidden="true"><span></span></div>'+
+    '<span class="peripheral-dot" id="peripheral-dot" style="left:85%;top:50%"></span></div>'+
+    '<p class="tracker-feedback">Не отводи взгляд от прицела. Замечай движение по краям поля.</p>'+
+    '<button type="button" class="primary" id="peripheral-start">Начнём →</button></div>';
+  const dot=document.getElementById('peripheral-dot');
+  const field=document.getElementById('peripheral-field');
+  document.getElementById('peripheral-start').addEventListener('click',()=>{
+    document.getElementById('peripheral-start').remove();
+    const started=performance.now();
+    let lastFrame=started,phase=0;
+    function animate(now){
+      if(now-started>=20000){
+        stopTracker();next();return;
+      }
+      const elapsed=Math.min((now-lastFrame)/1000,.05);
+      lastFrame=now;
+      phase+=elapsed*1.7;
+      const w=field.clientWidth,h=field.clientHeight;
+      const radiusX=Math.max(50,w*.36),radiusY=Math.max(58,h*.35);
+      const x=w/2+radiusX*Math.cos(phase);
+      const y=h/2+radiusY*Math.sin(phase*1.21);
+      dot.style.left=x+'px';dot.style.top=y+'px';
+      trackerFrame=requestAnimationFrame(animate);
+    }
+    trackerFrame=requestAnimationFrame(animate);
+  },{once:true});
 }
 
 function renderTracker(item){
@@ -353,7 +483,7 @@ function renderTracker(item){
     target:targetIndexes.has(i),el:null
   }));
   card.innerHTML=top('02 / Следи за шариками')+
-    '<div class="middle tracker-middle"><div class="tracker-meta"><span class="section-chip">Этап '+item.stage+' / 3</span><span class="tracker-clock" id="tracker-clock">10</span></div><p class="explain" id="tracker-instruction">Следи за '+item.targets+' красн'+(item.targets===1?'ым шариком':'ыми шариками')+'. Запоминай, где они окажутся.</p><div class="tracker-field" id="tracker-field" aria-label="Поле с движущимися шариками"></div><p class="tracker-feedback" id="tracker-feedback" aria-live="polite">Шарики двигаются — не теряй цель!</p></div>';
+    '<div class="middle tracker-middle"><div class="tracker-meta"><span class="section-chip">Этап 1 / 3 · Режим '+item.stage+' / 3</span><span class="tracker-clock" id="tracker-clock">15</span></div><p class="explain" id="tracker-instruction">Следи за '+item.targets+' красн'+(item.targets===1?'ым шариком':'ыми шариками')+'. Запоминай, где они окажутся.</p><div class="tracker-field" id="tracker-field" aria-label="Поле с движущимися шариками"></div><p class="tracker-feedback" id="tracker-feedback" aria-live="polite">Шарики двигаются — не теряй цель!</p></div>';
   const field=document.getElementById('tracker-field');
   const fieldRect=field.getBoundingClientRect();
   // Place balls without overlap at the start of each round.
@@ -432,7 +562,7 @@ function renderTracker(item){
   }
   trackerFrame=requestAnimationFrame(move);
   trackerInterval=setInterval(()=>{
-    const left=Math.max(0,10-Math.floor((performance.now()-trackerStageStarted)/1000));
+    const left=Math.max(0,15-Math.floor((performance.now()-trackerStageStarted)/1000));
     const clock=document.getElementById('tracker-clock');
     if(clock)clock.textContent=String(left);
     if(left<=0)endTrackerStage(item);
@@ -525,15 +655,7 @@ function next(){if(pos<flow.length-1)change(()=>{pos++;});}
 function restart(){stopTracker();stopMatchTimer();matchStartedAt=null;matchElapsed=0;lives=3;change(()=>makeFlow());}
 card.addEventListener('click',event=>{
   if(event.target.closest('button'))return;
-  if(card.dataset.action==='reveal'){
-    const item=flow[pos];
-    const answer=document.getElementById('math-answer');
-    answer.hidden=false;
-    answer.textContent='Правильный ответ: '+item.inkName;
-    document.getElementById('math-explain').textContent='Смотри на цвет букв, а не на значение слова.';
-    card.querySelector('.hint').textContent='Нажми ещё раз, чтобы перейти к следующему примеру';
-    card.dataset.action='next';
-  }else if(card.dataset.action==='next')next();
+  if(card.dataset.action==='next')next();
 });
 card.addEventListener('click',event=>{
   if(event.target && event.target.id==='begin')next();
