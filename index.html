@@ -47,6 +47,16 @@ h1{font-size:clamp(26px,5.5vw,44px);line-height:1.1;letter-spacing:-.035em;text-
 .actions{margin-top:29px}
 .footer{color:#89aaba;text-align:center;font-size:12px;line-height:1.5}
 .section-chip{display:inline-flex;border-radius:50px;border:1px solid #4a7c94;padding:7px 12px;font-size:11px;letter-spacing:.1em;color:#b7e3f0;text-transform:uppercase;font-weight:800}
+
+.number-middle{gap:18px;justify-content:center}
+.number-progress{font-size:15px;color:#d9f6ff;min-height:22px}
+.number-progress strong{font-size:20px}
+.number-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;width:min(100%,320px)}
+.number-tile{aspect-ratio:1/1;min-width:0;min-height:0;border-radius:13px;border:1px solid #83b4ca;background:#10364d;color:#f0faff;font-size:clamp(23px,6vw,30px);font-weight:850;cursor:pointer;transition:background .2s,box-shadow .2s}
+.number-tile:active{transform:scale(.96)}
+.number-tile.number-found{background:linear-gradient(150deg,#b8e9f3,#7eb9cb);border-color:#effdff;color:#10364b;box-shadow:inset 0 1px 0 #fff9}
+.number-hint{color:#afcfdd;font-size:12px;min-height:17px;margin:0}
+@media(max-width:370px){.number-board{gap:7px}.number-middle{gap:12px}}
 .match-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;width:min(100%,315px)}
 .tile{aspect-ratio:1/1;min-height:70px;border:1px solid #5a98b5;border-radius:17px;background:#13344b;font-size:clamp(30px,8vw,44px);display:grid;place-items:center;cursor:pointer;transition:transform .2s,background .2s,opacity .2s;color:white}
 .tile.selected{background:#2a6078;transform:scale(.95);border-color:#c2f4ff}
@@ -321,7 +331,9 @@ function makeFlow(){
     {type:'tracker',stage:3,targets:3},
     {type:'blink',stage:2},
     {type:'peripheral',stage:3},
-    {type:'rules',number:'3',block:'03 / Вопросы на раскрытие тебя',title:'Время подумать',body:'Прочитай вопрос и ответь на него про себя. Не торопись: здесь важнее твоё внутреннее ощущение.'},
+    {type:'rules',number:'3',block:'03 / Числовая перестановка',title:'Найди числа от 1 до 16',body:''},
+    {type:'numbers'},
+    {type:'rules',number:'4',block:'04 / Вопросы на раскрытие тебя',title:'Время подумать',body:'Прочитай вопрос и ответь на него про себя. Не торопись: здесь важнее твоё внутреннее ощущение.'},
     ...(questionItems.length?questionItems:[{type:'placeholder'}]),
     {type:'wish',text:finalWishes[rand(0,finalWishes.length-1)]}
   ];
@@ -364,6 +376,8 @@ function render(){
     renderBlinkExercise();
   }else if(item.type==='peripheral'){
     renderPeripheralExercise();
+  }else if(item.type==='numbers'){
+    renderNumberExercise();
   }else if(item.type==='match'){
     card.innerHTML=top('01 / Найди пары')+
       '<div class="middle"><span class="section-chip">Тренировка внимания</span><div class="match-timer" id="match-timer" aria-live="off">00:00.0</div><div class="match-board" id="board"></div><div class="match-status" id="status" aria-live="polite">Найдено пар: 0 / 6</div></div><div class="card-bottom"><span class="mini-note"> </span></div>';
@@ -373,12 +387,12 @@ function render(){
       b.addEventListener('click',()=>pick(b));board.appendChild(b);
     });
   }else if(item.type==='question'){
-    card.innerHTML=top('03 / Твои вопросы')+
+    card.innerHTML=top('04 / Твои вопросы')+
       '<div class="middle"><span class="section-chip">Вопрос для тебя</span><div class="puck" aria-hidden="true"></div><h2 class="question"></h2></div>'+
       bottom('Коснись карточки, чтобы продолжить');
     card.querySelector('.question').textContent=item.q;setTapAdvance();
   }else if(item.type==='placeholder'){
-    card.innerHTML=top('03 / Твои вопросы')+
+    card.innerHTML=top('04 / Твои вопросы')+
       '<div class="middle fade-in"><span class="section-chip">Скоро здесь будут вопросы</span><h2 class="question">Твоя личная разминка</h2></div>'+
       '<div class="card-bottom"><button type="button" class="primary" id="placeholder-next">Дальше →</button></div>';
     document.getElementById('placeholder-next').addEventListener('click',next);
@@ -392,6 +406,49 @@ function render(){
   updateLives();
 }
 
+
+
+// Numbers 1–16: correct choices remain highlighted and tiles move after every hit.
+function renderNumberExercise(){
+  card.innerHTML=top('03 / Числовая перестановка')+
+    '<div class="middle number-middle"><span class="section-chip">От 1 до 16</span>'+
+    '<div class="number-progress" id="number-progress" aria-live="polite">Следующее число: <strong>1</strong></div>'+
+    '<div class="number-board" id="number-board" aria-label="Числа от 1 до 16"></div>'+
+    '<p class="number-hint" id="number-hint">Нажимай на числа по порядку</p></div>';
+  const board=document.getElementById('number-board');
+  const progress=document.getElementById('number-progress');
+  const hint=document.getElementById('number-hint');
+  let nextNumber=1;
+  let order=shuffle(Array.from({length:16},(_,i)=>i+1));
+  const buttons=new Map();
+  for(let number=1;number<=16;number++){
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='number-tile';
+    button.textContent=String(number);
+    button.setAttribute('aria-label','Число '+number);
+    button.addEventListener('click',()=>{
+      if(number!==nextNumber || busy)return;
+      button.classList.add('number-found');
+      button.setAttribute('aria-pressed','true');
+      nextNumber++;
+      if(nextNumber===17){
+        progress.textContent='Все 16 чисел найдены!';
+        hint.textContent='Отличная работа!';
+        board.querySelectorAll('button').forEach(b=>b.disabled=true);
+        window.setTimeout(()=>next(),750);
+      }else{
+        progress.innerHTML='Следующее число: <strong>'+nextNumber+'</strong>';
+        const previous=order.slice();
+        // Each correct click moves every tile to a different position.
+        do{order=shuffle(previous);}while(order.some((value,i)=>value===previous[i]));
+        order.forEach(value=>board.appendChild(buttons.get(value)));
+      }
+    });
+    buttons.set(number,button);
+  }
+  order.forEach(value=>board.appendChild(buttons.get(value)));
+}
 
 // Two quiet attention exercises: 20 seconds each, with automatic progression.
 function renderBlinkExercise(){
